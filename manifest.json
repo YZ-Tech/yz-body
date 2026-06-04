@@ -1,7 +1,7 @@
 {
   "id": "body",
   "name": "Full-Body Avatar",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "enabled": true,
   "nav": null,
   "dashboards": [
@@ -14,7 +14,10 @@
     }
   ],
   "exports": [
-    { "id": "BodyDashboard", "type": "component" }
+    {
+      "id": "BodyDashboard",
+      "type": "component"
+    }
   ],
   "service": {
     "url": "http://127.0.0.1:9005"
@@ -23,7 +26,9 @@
     "hooks": {
       "onPromptBuild": {
         "endpoint": "/catalog",
-        "activeWhen": { "dashboard": "body" },
+        "activeWhen": {
+          "dashboard": "body"
+        },
         "ttlSeconds": 30
       }
     }

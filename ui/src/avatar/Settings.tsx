@@ -7,6 +7,7 @@ import { useBodyClipPools } from '../hooks/useBodyClipPools'
 import { useBodyFlags } from '../hooks/useBodyFlags'
 import { useStore } from '../store'
 import { IconBtn } from '../components/IconBtn'
+import { BodySettingsAimPoints } from './SettingsAimPoints'
 import { BodySettingsAppearance } from './SettingsAppearance'
 import { BodySettingsBehavior } from './SettingsBehavior'
 import { BodySettingsClips } from './SettingsClips'
@@ -87,6 +88,7 @@ export function BodySettings({
         <BodySettingsAppearance />
         <BodySettingsOverlays />
         <BodySettingsClips onPreview={onPreview} />
+        <BodySettingsAimPoints />
       </Box>
       <Stack direction="row" sx={{ alignItems: 'center', p: 1.5, gap: 1 }}>
         <Button

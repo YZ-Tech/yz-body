@@ -24,6 +24,7 @@ import {
   useBodyPointBridge,
   useBodyTtsLevelStream,
   useBodyWledAuraBridge,
+  useBodyWledStoreBridge,
 } from './avatarBridges'
 
 /** Dashboard variant 13 — rigged Three.js character driven by per-mode
@@ -204,6 +205,7 @@ export function BodyAvatar() {
   useBodyPointBridge(playPointRef)
   useBodyCharacterReloadBridge(loadCharacterRef, flagsRef)
   useBodyWledAuraBridge(setAuraRef)
+  useBodyWledStoreBridge()
   const ttsRmsRef = useBodyTtsLevelStream()
 
   // ── AvatarEngine: owns scene, camera, renderer, controls, lights,

@@ -1,5 +1,6 @@
 import { useEffect, useRef, type MutableRefObject } from 'react'
 import { useStore } from '../store'
+import type { WLEDEvent } from '../store/storeWLED'
 import type { BodyMode } from '../hooks/useBodyClipPools'
 import { useWebSocket } from '../lib/ws'
 import { useSubscription } from '../lib/ws'
@@ -116,6 +117,37 @@ export function useBodyWledAuraBridge(setAuraRef: MutableRefObject<(s: AuraEvent
   }>('wled', (d) => {
     setAuraRef.current?.({ alias: d.alias ?? null })
   })
+}
+
+/** Populate the satellite's WLED store from the host. The host's `wled` WS
+ *  events are live per-device state only (no roster), so on every (re)connect
+ *  we seed the full device list — incl. the point_at / aura_hand config the
+ *  satellite has no other source for — from GET /api/wled/devices (the host's
+ *  absolute path, not the /api/body prefix). Per-device WS pushes then keep
+ *  live color + reachability current. Both the engine's lighting/aura overlays
+ *  (which read `store.wled.devices`) and the Aim Points settings panel depend
+ *  on this — without it the store stays empty (a gap left by the in-core
+ *  extraction). Standalone SPA: the fetch 404s/throws → store stays empty. */
+export function useBodyWledStoreBridge() {
+  const seedWLED = useStore((s) => s.seedWLED)
+  const applyWLEDEvent = useStore((s) => s.applyWLEDEvent)
+  const { isConnected } = useWebSocket()
+  useEffect(() => {
+    if (!isConnected) return
+    let cancelled = false
+    fetch('/api/wled/devices')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => {
+        if (!cancelled && Array.isArray(d)) seedWLED(d)
+      })
+      .catch(() => {
+        /* host has no /api/wled (standalone) — leave the store empty */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isConnected, seedWLED])
+  useSubscription<WLEDEvent>('wled', (e) => applyWLEDEvent(e))
 }
 
 /** Stream TTS RMS into a ref the render loop polls each frame. Also
