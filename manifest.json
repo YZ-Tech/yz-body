@@ -1,0 +1,40 @@
+{
+  "id": "body",
+  "name": "Full-Body Avatar",
+  "version": "0.0.1",
+  "enabled": true,
+  "nav": null,
+  "dashboards": [
+    {
+      "id": "body",
+      "label": "Full-Body (3D)",
+      "component": "BodyDashboard",
+      "variant": 13,
+      "apiBase": "/api/body"
+    }
+  ],
+  "exports": [
+    { "id": "BodyDashboard", "type": "component" }
+  ],
+  "service": {
+    "url": "http://127.0.0.1:9005"
+  },
+  "contributes": {
+    "hooks": {
+      "onPromptBuild": {
+        "endpoint": "/catalog",
+        "activeWhen": { "dashboard": "body" },
+        "ttlSeconds": 30
+      }
+    }
+  },
+  "settings": {
+    "analyze_clips_on_boot": {
+      "type": "bool",
+      "default": true,
+      "label": "Analyze avatar clips on startup",
+      "description": "Extract beat/timing metadata for animation clips at boot (mtime-cached). Off = skip; the motion catalog uses whatever metadata already exists.",
+      "affectsBoot": true
+    }
+  }
+}

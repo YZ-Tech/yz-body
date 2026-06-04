@@ -1,0 +1,33 @@
+[project]
+name = "yz-body"            # dist name; import package is "yz_body"
+version = "0.0.1"
+description = "3D full-body avatar for JarvYZ — gestures, motion clips, lipsync, render styles. JarvYZ's body (vs musetalk's face). Standalone HTTP service + dynamic-module UI (dashboard variant 13)."
+requires-python = ">=3.10,<3.13"
+license = { text = "MIT" }
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.5.0",
+]
+
+# Invoked as `python -m yz_body` (daemon) only — no CLI shim.
+
+[project.optional-dependencies]
+# Texture editing (extract / repack / customize endpoints). Heavy + rarely
+# needed, so kept out of the base install — `pip install yz-body[textures]`.
+textures = ["pillow>=10.0", "numpy>=1.24"]
+dev = ["pytest>=7.0", "httpx>=0.25", "ruff>=0.4"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["yz_body*"]
+
+# The ~162M of 3D assets (.glb characters + animations) are NOT bundled into the
+# wheel — they are DOWNLOADED ON FIRST RUN into the data dir
+# (~/.jarvyz/satellites/body/assets/) from a release-hosted bundle. The wheel
+# ships only the server + the built SPA (yz_body/static/).
+[tool.setuptools.package-data]
+yz_body = ["static/**/*"]

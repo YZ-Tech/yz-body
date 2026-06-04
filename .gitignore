@@ -1,0 +1,12 @@
+__pycache__
+node_modules
+dist
+dist-lib
+build
+*.log
+*.egg-info/
+.venv/
+# Built SPA lands in the package at ship time (source of truth is ui/).
+yz_body/static/
+# 3D assets are downloaded on first run into the data dir, never tracked here.
+assets/
