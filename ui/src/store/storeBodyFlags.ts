@@ -41,8 +41,12 @@ export const Body_DEFAULT_FLAGS: BodyFlags = {
   // dynamic character roster (useBodyCharacters) overrides this view
   // once it fetches — and if this file no longer exists on disk, the
   // Select will warn (out-of-range value) until the user picks one.
-  // Loom is the most commonly-used character in this project.
-  characterFile: 'Loom.glb',
+  // MUST be a character the PUBLIC release ships (the public asset zip
+  // carries only BotF.glb + BotM.glb): a fresh install has empty
+  // localStorage and falls back to this default, so it has to resolve to
+  // a shipped GLB or the avatar loads nothing. Loom/Yeon/recolors are
+  // local-only and would 404 on a clean install.
+  characterFile: 'BotF.glb',
   eyeTracking: false,
   eyeBlink: true,
   renderStyle: 'realistic',
