@@ -3,6 +3,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import type { MutableRefObject } from 'react'
 import type { BodyCameraPresets } from '../../hooks/useBodyCameraPresets'
 import type { BodyClipPools, BodyMode } from '../../hooks/useBodyClipPools'
@@ -165,6 +166,21 @@ export class AvatarEngine {
     this.renderer.setSize(container.clientWidth, container.clientHeight, false)
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
+    this.renderer.shadowMap.enabled = true
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+
+    // Image-based lighting: a neutral procedural room gives every PBR
+    // material soft ambient + spec reflections — far less flat than the
+    // directional-only rig. No external HDRI file needed.
+    const pmrem = new THREE.PMREMGenerator(this.renderer)
+    const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+    this.scene.environment = envTex
+    this.scene.environmentIntensity = 0.6
+    pmrem.dispose()
+    this.cleanupFns.push(() => {
+      this.scene.environment = null
+      envTex.dispose()
+    })
 
     // OrbitControls: wheel zoom, left-drag rotate, right-drag pan.
     this.controls = new OrbitControls(this.camera, canvas)
@@ -182,18 +198,46 @@ export class AvatarEngine {
 
     this.cameraTweener = new CameraTweener(this.camera, this.controls)
 
-    // Three-point lighting: key (front-right), fill (left), rim (back).
-    const ambient = new THREE.AmbientLight(0xffffff, 0.45)
+    // Three-point lighting: key (front-right, shadow-casting), fill
+    // (left), rim (back). Ambient is low now that IBL provides the fill.
+    const ambient = new THREE.AmbientLight(0xffffff, 0.15)
     this.scene.add(ambient)
-    const key = new THREE.DirectionalLight(0xffffff, 1.1)
+    const key = new THREE.DirectionalLight(0xffffff, 1.0)
     key.position.set(150, 250, 200)
+    key.castShadow = true
+    key.shadow.mapSize.set(2048, 2048)
+    key.shadow.camera.near = 1
+    key.shadow.camera.far = 900
+    key.shadow.camera.left = -220
+    key.shadow.camera.right = 220
+    key.shadow.camera.top = 320
+    key.shadow.camera.bottom = -120
+    key.shadow.bias = -0.0004
+    key.shadow.normalBias = 1.2
+    key.shadow.radius = 4
     this.scene.add(key)
-    const fill = new THREE.DirectionalLight(0x9eb5ff, 0.5)
+    const fill = new THREE.DirectionalLight(0x9eb5ff, 0.45)
     fill.position.set(-200, 150, 100)
     this.scene.add(fill)
     const rim = new THREE.DirectionalLight(0xffd29e, 0.4)
     rim.position.set(0, 200, -200)
     this.scene.add(rim)
+
+    // Transparent ground that renders ONLY the contact shadow — grounds
+    // the figure without drawing a visible floor.
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(4000, 4000),
+      new THREE.ShadowMaterial({ opacity: 0.32 }),
+    )
+    ground.rotation.x = -Math.PI / 2
+    ground.position.y = 0
+    ground.receiveShadow = true
+    this.scene.add(ground)
+    this.cleanupFns.push(() => {
+      this.scene.remove(ground)
+      ground.geometry.dispose()
+      ;(ground.material as THREE.Material).dispose()
+    })
 
     // Overlay manager wires the live-edit bypass + initial config.
     this.overlayManager.installLivePatch()
@@ -216,7 +260,15 @@ export class AvatarEngine {
         this.lastRenderStyle = ''
       },
       rediscoverBones: () => this.discoverBonesAndMorphs(),
-      onCharacterReady: () => {
+      onCharacterReady: (character: THREE.Group) => {
+        // Self-shadowing: nose on cheek, hair on shoulders, arms on torso.
+        character.traverse((o) => {
+          const m = o as THREE.Mesh
+          if (m.isMesh) {
+            m.castShadow = true
+            m.receiveShadow = true
+          }
+        })
         void this.clipPlayer.playFromPool(this.deps.modeRef.current, true)
       },
     })
