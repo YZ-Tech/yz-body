@@ -34,6 +34,7 @@ import { ClipPlayer } from './ClipPlayer'
 import type { RigType } from './rigRemap'
 import { GazeSystem } from './GazeSystem'
 import { LipsyncSystem } from './LipsyncSystem'
+import type { VisemeController } from './VisemeController'
 import { OverlayManager } from './OverlayManager'
 import { RenderStyleManager } from './RenderStyleManager'
 import { WledLightingSystem } from './WledLightingSystem'
@@ -50,6 +51,10 @@ export interface AvatarEngineDeps {
   clipBasenameMapRef: MutableRefObject<Record<string, string>>
   targetRigRef: MutableRefObject<RigType>
   ttsRmsRef: MutableRefObject<number>
+  /** Neurosync lipsync controller (broadcast-audio clock + viseme track). Null
+   *  until the bridge creates it; the tick reads currentFrame() and falls back
+   *  to amplitude lipsync when it returns null. */
+  visemeRef: MutableRefObject<VisemeController | null>
   cameraPresetsRef: MutableRefObject<BodyCameraPresets>
   // Initial overlay configs — subsequent edits come via
   // engine.rebuildOverlays / syncOverlayConfigs from Avatar's
@@ -461,6 +466,7 @@ export class AvatarEngine {
       console.log(`[body] lipsync targets:`,
         this.bones.lipTargets.map((t) => `${t.mesh.name}[${t.idx}]`))
     }
+    console.log(`[body] neurosync viseme morphs bound: ${this.bones.visemeByIndex.size} (need ~27 ARKit mouth shapes)`)
     if (this.bones.blinkTargets.length === 0) {
       console.warn('[body] no eyeBlink morphs found — blinking disabled.')
     } else {
@@ -510,6 +516,7 @@ export class AvatarEngine {
       bones: this.bones,
       lipsyncGain: this.deps.behaviorRef.current.lipsyncGain,
       lipsyncMax: this.deps.behaviorRef.current.lipsyncMax,
+      visemeFrame: this.deps.visemeRef.current?.currentFrame() ?? null,
     })
 
     // Body overlays — driver → target color/intensity, lerp, apply.

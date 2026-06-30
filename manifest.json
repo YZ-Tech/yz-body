@@ -1,7 +1,7 @@
 {
   "id": "body",
   "name": "Full-Body Avatar",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "enabled": true,
   "nav": null,
   "dashboards": [
@@ -40,6 +40,13 @@
       "label": "Analyze avatar clips on startup",
       "description": "Extract beat/timing metadata for animation clips at boot (mtime-cached). Off = skip; the motion catalog uses whatever metadata already exists.",
       "affectsBoot": true
+    },
+    "lipsync_engine": {
+      "type": "enum",
+      "default": "amplitude",
+      "enumValues": ["amplitude", "neurosync"],
+      "label": "Lipsync engine",
+      "description": "How the avatar's mouth moves while speaking. 'amplitude' = simple TTS RMS to jaw-open. 'neurosync' = full ARKit mouth driven by real phoneme visemes from the NeuroSync model (needs the ~1GB weights; set it up in Behavior > Speech). Hot-toggleable; no restart needed."
     }
   }
 }

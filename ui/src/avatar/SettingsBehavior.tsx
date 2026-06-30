@@ -12,7 +12,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useBodyBehavior } from '../hooks/useBodyBehavior'
 import { useBodyFlags } from '../hooks/useBodyFlags'
 import { useStore } from '../store'
@@ -111,6 +111,7 @@ export function BodySettingsBehavior() {
         {/* ── Speech feel knobs ───────────────────────────────────── */}
         <GroupHeader label="Speech" onReset={() => behavior.resetGroup('feel')} />
         <Stack spacing={0.5}>
+          <LipsyncEngineRows />
           <SliderRow
             label="Lipsync gain"
             info="How sensitive the mouth-open morph is to TTS RMS. Higher = more exaggerated mouth movement."
@@ -239,6 +240,211 @@ export function BodySettingsBehavior() {
         </Box>
       </Stack>
     </SettingsSection>
+  )
+}
+
+interface NeurosyncModel {
+  available?: boolean
+  path?: string | null
+  downloading?: boolean
+  downloaded_mb?: number
+  total_mb?: number
+  download_error?: string | null
+}
+
+interface LipsyncEngineState {
+  engine: 'amplitude' | 'neurosync'
+  model: NeurosyncModel
+}
+
+/** Lipsync engine picker + the client-only "audio here" unmute. `neurosync`
+ *  drives the avatar's full ARKit mouth from real phoneme visemes (synced to
+ *  playback); `amplitude` is the simple RMS→jaw-open fallback.
+ *
+ *  This is fully satellite-owned — core carries no viseme code. The engine
+ *  selection is the `lipsync_engine` satellite setting (read via the effective
+ *  manifest, written via PATCH /api/satellites/body); the NeuroSync weights
+ *  (status / one-click download / progress) come from the satellite service,
+ *  proxied at /api/body/lipsync/*. The download writes straight to the canonical
+ *  path, so the only model action is a one-time download when it's missing. */
+function LipsyncEngineRows() {
+  const [st, setSt] = useState<LipsyncEngineState | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [audioHere, setAudioHere] = useState(
+    () => localStorage.getItem('yzBodyAudioHere') === '1',
+  )
+  const [leadMs, setLeadMs] = useState(() => {
+    const raw = localStorage.getItem('yzBodyVisemeLeadMs')
+    return raw !== null ? Number(raw) : 0
+  })
+
+  const refresh = async () => {
+    try {
+      // Engine selection: the effective `lipsync_engine` satellite setting.
+      const effP = fetch('/api/satellites/effective')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          const v = d?.manifests?.body?.settings?.lipsync_engine?.value
+          return v === 'neurosync' ? 'neurosync' : 'amplitude'
+        })
+        .catch(() => 'amplitude' as const)
+      // Weights status (+ live download progress) from the satellite service.
+      const modelP = fetch('/api/body/lipsync/model')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => (d ?? {}) as NeurosyncModel)
+        .catch(() => ({} as NeurosyncModel))
+      const [engine, model] = await Promise.all([effP, modelP])
+      setSt({ engine: engine as 'amplitude' | 'neurosync', model })
+    } catch {
+      /* leave state as-is */
+    }
+  }
+
+  useEffect(() => { void refresh() }, [])
+
+  // Re-fetch when another consumer (the onboarding dialog) downloads the model
+  // or flips the engine, so the chip/toggle here don't go stale.
+  useEffect(() => {
+    const onChanged = () => { void refresh() }
+    window.addEventListener('body.lipsyncChanged', onChanged)
+    return () => window.removeEventListener('body.lipsyncChanged', onChanged)
+  }, [])
+
+  // Poll while a model download is in flight so progress updates live.
+  useEffect(() => {
+    if (!st?.model?.downloading) return
+    const id = window.setInterval(() => { void refresh() }, 1500)
+    return () => window.clearInterval(id)
+  }, [st?.model?.downloading])
+
+  // Push the persisted "audio here" choice to the viseme controller on mount + change.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('body.audioHere', { detail: { on: audioHere } }))
+  }, [audioHere])
+
+  // Push the viseme lead (sync offset) to the controller on mount + change.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('body.visemeLead', { detail: { ms: leadMs } }))
+  }, [leadMs])
+
+  const setEngine = async (neuro: boolean) => {
+    setBusy(true)
+    try {
+      // Write the satellite setting via the generic override API; the in-core
+      // producer reads it live, so the toggle takes effect on the next utterance.
+      const r = await fetch('/api/satellites/body', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: { lipsync_engine: neuro ? 'neurosync' : 'amplitude' } }),
+      })
+      if (r.ok) await refresh()
+    } catch {
+      /* leave state as-is */
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const install = async () => {
+    setBusy(true)
+    try {
+      await fetch('/api/body/lipsync/install', { method: 'POST' })
+      await refresh()
+    } catch {
+      /* ignore */
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const neuroOn = st?.engine === 'neurosync'
+  const model = st?.model
+  const modelAvailable = !!model?.available
+
+  return (
+    <>
+      <SettingsRow
+        title="Neurosync visemes"
+        info="On: the avatar's full mouth (ARKit blendshapes) is driven by real phoneme visemes from the NeuroSync model, synced to the TTS audio. Off: simple amplitude (TTS RMS → jaw-open)."
+      >
+        <Switch
+          size="small"
+          checked={neuroOn}
+          disabled={busy || !modelAvailable}
+          onChange={(e) => void setEngine(e.target.checked)}
+        />
+      </SettingsRow>
+
+      {model?.downloading && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', pl: 0.5 }}>
+          Downloading NeuroSync model… {model.downloaded_mb ?? 0}
+          {model.total_mb ? `/${model.total_mb} MB (${Math.round((100 * (model.downloaded_mb ?? 0)) / model.total_mb)}%)` : ' MB'}
+        </Typography>
+      )}
+      {st && !modelAvailable && !model?.downloading && (
+        <Stack direction="row" sx={{ alignItems: 'center', gap: 1, pl: 0.5, flexWrap: 'wrap' }}>
+          <Typography variant="caption" color="warning.main">
+            NeuroSync model not installed (~1 GB, one-time).
+          </Typography>
+          <Chip
+            size="small"
+            label={busy ? 'Starting…' : 'Download NeuroSync'}
+            onClick={busy ? undefined : () => void install()}
+            variant="outlined"
+            color="primary"
+          />
+          {model?.download_error && (
+            <Typography variant="caption" color="error.main">{model.download_error}</Typography>
+          )}
+        </Stack>
+      )}
+
+      <SettingsRow
+        title="Play audio here"
+        info="Off (default): this browser stays silent — it only schedules the TTS audio to drive lipsync timing (no double-audio on the host). On: actually hear TTS in this browser (e.g. a remote viewer)."
+      >
+        <Switch
+          size="small"
+          checked={audioHere}
+          onChange={(e) => {
+            const on = e.target.checked
+            setAudioHere(on)
+            localStorage.setItem('yzBodyAudioHere', on ? '1' : '0')
+          }}
+        />
+      </SettingsRow>
+
+      {neuroOn && (
+        <SettingsRow
+          title={
+            <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75 }} component="span">
+              <span>Lipsync lead</span>
+              <Typography
+                variant="caption"
+                sx={{ fontFamily: 'ui-monospace, monospace', color: 'primary.main' }}
+              >
+                {leadMs} ms
+              </Typography>
+            </Stack>
+          }
+          info="Advances the visemes to line up with the audio you hear. Raise it if the mouth trails the voice, lower it if the mouth leads. Tune by ear."
+        >
+          <Slider
+            size="small"
+            value={leadMs}
+            min={-300}
+            max={300}
+            step={10}
+            onChange={(_, v) => {
+              const ms = Array.isArray(v) ? v[0] : v
+              setLeadMs(ms)
+              localStorage.setItem('yzBodyVisemeLeadMs', String(ms))
+            }}
+            sx={{ width: 140 }}
+          />
+        </SettingsRow>
+      )}
+    </>
   )
 }
 

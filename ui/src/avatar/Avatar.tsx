@@ -23,6 +23,7 @@ import {
   useBodyMotionBridge,
   useBodyPointBridge,
   useBodyTtsLevelStream,
+  useBodyVisemeStream,
   useBodyWledAuraBridge,
   useBodyWledStoreBridge,
 } from './avatarBridges'
@@ -207,6 +208,7 @@ export function BodyAvatar() {
   useBodyWledAuraBridge(setAuraRef)
   useBodyWledStoreBridge()
   const ttsRmsRef = useBodyTtsLevelStream()
+  const visemeRef = useBodyVisemeStream()
 
   // ── AvatarEngine: owns scene, camera, renderer, controls, lights,
   //    loaders, and every sub-system. Mount-once: wire imperative refs
@@ -226,6 +228,7 @@ export function BodyAvatar() {
       clipBasenameMapRef,
       targetRigRef,
       ttsRmsRef,
+      visemeRef,
       cameraPresetsRef,
       initialOverlayConfigs: overlayConfigs,
       setBodyCurrentClip,

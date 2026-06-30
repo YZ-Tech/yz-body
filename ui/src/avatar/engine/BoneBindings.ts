@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { BodyEyeBoneCandidates } from '../../lib/body/behavior'
+import { ARKIT_MOUTH_NAME_BY_INDEX } from './arkit'
 
 /** Walks a loaded character and binds the eye/head/jaw bones plus the
  *  lipsync (jaw-open) and blink (eyeBlink) morph targets that the gaze,
@@ -30,6 +31,12 @@ export class BoneBindings {
    *  morph) pair across both eyeBlinkLeft AND eyeBlinkRight. */
   blinkTargets: { mesh: THREE.Mesh; idx: number }[] = []
 
+  /** Neurosync viseme targets — ARKit mouth index (14..40) -> every (mesh,
+   *  morph) pair carrying that blendshape. Populated only when the rig exposes
+   *  ARKit mouth shapes (e.g. Loom.glb); empty otherwise, so neurosync lipsync
+   *  falls back to the amplitude jaw-open path. */
+  visemeByIndex: Map<number, { mesh: THREE.Mesh; idx: number }[]> = new Map()
+
   /** Clear everything. Called before re-discovery (character swap or
    *  user editing the rig-compatibility candidate lists). */
   reset(): void {
@@ -37,6 +44,7 @@ export class BoneBindings {
     this.eyeRestL = this.eyeRestR = this.headRest = this.jawRest = null
     this.lipTargets.length = 0
     this.blinkTargets.length = 0
+    this.visemeByIndex.clear()
   }
 
   /** Find eye/head/jaw bones via the candidate name lists and capture
@@ -82,6 +90,15 @@ export class BoneBindings {
       }
       for (const name of blinkMorphNames) {
         if (name in dict) this.blinkTargets.push({ mesh, idx: dict[name] })
+      }
+      // Neurosync viseme morphs: bind every ARKit mouth shape this mesh has.
+      for (const [arkitIdxStr, name] of Object.entries(ARKIT_MOUTH_NAME_BY_INDEX)) {
+        if (name in dict) {
+          const arkitIdx = Number(arkitIdxStr)
+          const list = this.visemeByIndex.get(arkitIdx) ?? []
+          list.push({ mesh, idx: dict[name] })
+          this.visemeByIndex.set(arkitIdx, list)
+        }
       }
     })
   }

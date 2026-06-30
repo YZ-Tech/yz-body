@@ -917,6 +917,31 @@ def catalog() -> dict:
     return {"text": _catalog.build_catalog()}
 
 
+# ────────────────────────── lipsync (NeuroSync viseme) model ────────────
+# The NeuroSync viseme engine runs IN-CORE (the producer reads TTS audio there);
+# these routes only manage its WEIGHTS file on disk (status / one-click install /
+# download progress), so they import the TORCH-FREE `lipsync.model_io` — the
+# satellite process never loads torch or the ~942MB model. JarvYZ proxies them
+# at /api/body/lipsync/*. The engine SELECTION (amplitude|neurosync) is the
+# `lipsync_engine` satellite setting, toggled via core PATCH /api/satellites/body.
+
+@app.get("/lipsync/model")
+def lipsync_model_status() -> dict:
+    """Setup/check for the NeuroSync weights: present?, where?, at the stable
+    location?, plus live download progress when install() is fetching them."""
+    from .lipsync import model_io
+    return model_io.model_status()
+
+
+@app.post("/lipsync/install")
+def lipsync_install() -> dict:
+    """One-click NeuroSync setup: promote a local model to the stable
+    ~/.jarvyz/models/neurosync/ path if one exists, else start a background
+    download of the MIT weights. Progress reported via GET /lipsync/model."""
+    from .lipsync import model_io
+    return model_io.install()
+
+
 @app.get("/settings")
 def get_settings() -> dict:
     return {"data_root": str(settings.data_root), "assets_url": settings.assets_url}

@@ -14,6 +14,7 @@
 import { ThemeProvider, type Theme } from '@mui/material/styles'
 import { useMemo } from 'react'
 import { BodyAvatar } from './avatar/Avatar'
+import { LipsyncOnboardingDialog } from './avatar/LipsyncOnboardingDialog'
 import { WSContext, type WSApi } from './lib/ws'
 import { setApiBase } from './lib/assetBase'
 import {
@@ -52,6 +53,7 @@ export function BodyDashboard({ theme, wsApi, api, capabilities }: BodyDashboard
       <CapabilitiesContext.Provider value={caps}>
         <WSContext.Provider value={wsApi}>
           <BodyAvatar />
+          <LipsyncOnboardingDialog />
         </WSContext.Provider>
       </CapabilitiesContext.Provider>
     </ThemeProvider>

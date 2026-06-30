@@ -1,7 +1,7 @@
 {
   "name": "yz-body-ui",
   "private": true,
-  "version": "0.0.4",
+  "version": "0.0.5",
   "type": "module",
   "description": "Full-body 3D avatar UI \u2014 shipped as a react-dynamic-module IIFE for JarvYZ (dashboard variant 13), also buildable as a standalone SPA served by the satellite at /.",
   "scripts": {

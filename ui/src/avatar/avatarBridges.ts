@@ -4,6 +4,7 @@ import type { WLEDEvent } from '../store/storeWLED'
 import type { BodyMode } from '../hooks/useBodyClipPools'
 import { useWebSocket } from '../lib/ws'
 import { useSubscription } from '../lib/ws'
+import { VisemeController, type VisemeTrack } from './engine/VisemeController'
 
 /** React/WS event bridges for BodyAvatar. Each hook does ONE thing: subscribe
  *  to a WS channel or window event and forward the payload into a ref that
@@ -167,4 +168,55 @@ export function useBodyTtsLevelStream(): MutableRefObject<number> {
     }
   }, [send, isConnected])
   return ttsRmsRef
+}
+
+/** Neurosync lipsync bridge: owns a VisemeController (broadcast-audio clock +
+ *  viseme track), feeds it `tts_visemes` payloads, and connects its WebAudio
+ *  player to the host's `/ws/audio` PCM stream. The render loop reads
+ *  controller.currentFrame() each tick. The track channel only emits when the
+ *  backend lipsync engine is `neurosync`, so the avatar auto-switches: tracks
+ *  flowing → real visemes, otherwise → amplitude jaw-open. */
+export function useBodyVisemeStream(): MutableRefObject<VisemeController | null> {
+  const ref = useRef<VisemeController | null>(null)
+  if (ref.current === null) ref.current = new VisemeController()
+  useSubscription<VisemeTrack>('tts_visemes', (d) => ref.current?.onTrack(d))
+  const { send, isConnected } = useWebSocket()
+
+  useEffect(() => {
+    const c = ref.current ?? new VisemeController()
+    ref.current = c
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
+    c.start(`${proto}//${location.host}/ws/audio`)
+    // "Audio here" toggle: the broadcast player is silent by default (it only
+    // provides the lipsync clock); unmute to actually hear TTS in this browser
+    // (remote viewing). Driven by a window event so the settings panel needn't
+    // reach the controller through the store.
+    const onAudioHere = (e: Event) => {
+      const on = (e as CustomEvent<{ on?: boolean }>).detail?.on
+      c.setMuted(!on)
+    }
+    window.addEventListener('body.audioHere', onAudioHere as EventListener)
+    // Lipsync lead (ms): advance visemes to compensate for PC-vs-browser audio lag.
+    const onLead = (e: Event) => {
+      const ms = (e as CustomEvent<{ ms?: number }>).detail?.ms
+      if (typeof ms === 'number') c.setLeadMs(ms)
+    }
+    window.addEventListener('body.visemeLead', onLead as EventListener)
+    return () => {
+      window.removeEventListener('body.audioHere', onAudioHere as EventListener)
+      window.removeEventListener('body.visemeLead', onLead as EventListener)
+      c.dispose()
+      ref.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isConnected) return
+    send({ type: 'subscribe_event', event_type: 'tts_visemes' })
+    return () => {
+      send({ type: 'unsubscribe_event', event_type: 'tts_visemes' })
+    }
+  }, [send, isConnected])
+
+  return ref
 }
