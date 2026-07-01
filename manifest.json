@@ -50,9 +50,16 @@
     "lipsync_engine": {
       "type": "enum",
       "default": "amplitude",
-      "enumValues": ["amplitude", "neurosync"],
+      "enumValues": [
+        "amplitude",
+        "neurosync"
+      ],
       "label": "Lipsync engine",
       "description": "How the avatar's mouth moves while speaking. 'amplitude' = simple TTS RMS to jaw-open. 'neurosync' = full ARKit mouth driven by real phoneme visemes from the NeuroSync model (needs the ~1GB weights; set it up in Behavior > Speech). Hot-toggleable; no restart needed."
     }
+  },
+  "requires": {
+    "network": "setup",
+    "sensors": []
   }
 }
