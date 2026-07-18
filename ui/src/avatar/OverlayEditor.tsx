@@ -27,6 +27,7 @@ import type {
   OverlayEffect,
 } from '../lib/body/bodyOverlays'
 import { applyLiveOverlayPatch } from '../lib/body/liveOverlay'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { IconBtn } from '../components/IconBtn'
 
 /** Per-overlay config card. Header row stays visible; body collapses
@@ -48,6 +49,9 @@ export function OverlayEditor({
   // Hooks must be declared before any conditional return — keep
   // useState/useRef here even though we early-return on missing cfg.
   const [expanded, setExpanded] = useState(cfg?.enabled ?? false)
+  // Delete confirmation (themed ConfirmDialog) — hook, so it lives up
+  // here with the others, above the early return.
+  const [confirmDel, setConfirmDel] = useState(false)
   // Drag-commit debouncer used by every high-frequency editor control
   // (color picker + every Slider). The pattern:
   //   1. liveCommit(patch)        → mutate Three.js NOW (zero React)
@@ -111,9 +115,7 @@ export function OverlayEditor({
     return { ...(cfg.flow ?? {}), ...(pending ?? {}) }
   }
   const onChange = (patch: Partial<BodyOverlayConfig>) => updateOne(id, patch)
-  const onDelete = () => {
-    if (confirm(`Delete overlay "${id}"?`)) remove(id)
-  }
+  const onDelete = () => setConfirmDel(true)
   // Hex color string for the native color picker; convert to/from
   // the config's 0..255 RGB tuple on edit.
   const hex = `#${cfg.baseColor.map((v) => v.toString(16).padStart(2, '0')).join('')}`
@@ -130,6 +132,13 @@ export function OverlayEditor({
   const driverKind = cfg.driver.kind
   return (
     <Paper variant="outlined" sx={{ p: 1.25, opacity: cfg.enabled ? 1 : 0.6 }}>
+      <ConfirmDialog
+        open={confirmDel}
+        title="Delete overlay"
+        message={`Delete overlay "${id}"? Its effect, driver, and bone selection are gone for good.`}
+        onConfirm={() => remove(id)}
+        onClose={() => setConfirmDel(false)}
+      />
       <Stack direction="row" sx={{ alignItems: 'center', gap: 0.5 }}>
         <Switch
           size="small"

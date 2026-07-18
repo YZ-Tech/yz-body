@@ -1,7 +1,8 @@
 import CloseIcon from '@mui/icons-material/Close'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import { Box, Button, Stack, Typography } from '@mui/material'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useBodyCharacterMeta } from '../hooks/useBodyCharacterMeta'
 import { useBodyClipPools } from '../hooks/useBodyClipPools'
 import { useBodyFlags } from '../hooks/useBodyFlags'
@@ -30,6 +31,8 @@ export function BodySettings({
   const charMetaApi = useBodyCharacterMeta()
   const activeCharGender = charMetaApi.genderOf(flags.characterFile)
   const [, , resetAll] = useBodyClipPools(flags.characterFile, activeCharGender)
+  // Confirmed via the themed ConfirmDialog, not window.confirm.
+  const [confirmReset, setConfirmReset] = useState(false)
 
   // Escape-to-close (Drawer used to give this for free).
   useEffect(() => {
@@ -94,13 +97,19 @@ export function BodySettings({
         <Button
           size="small"
           startIcon={<RestartAltIcon />}
-          onClick={() => {
-            if (confirm('Reset all clip pools to defaults?')) resetAll()
-          }}
+          onClick={() => setConfirmReset(true)}
           color="warning"
         >
           Reset
         </Button>
+        <ConfirmDialog
+          open={confirmReset}
+          title="Reset clip pools"
+          message="Reset all clip pools to defaults? Your per-mode clip assignments are replaced by the stock set."
+          confirmLabel="Reset"
+          onConfirm={resetAll}
+          onClose={() => setConfirmReset(false)}
+        />
         <Box sx={{ flex: 1 }} />
         <Button size="small" onClick={onClose} variant="contained">
           Done

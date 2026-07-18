@@ -31,6 +31,7 @@ import {
 import { useBodyClipTags } from '../hooks/useBodyClipTags'
 import { useBodyFlags } from '../hooks/useBodyFlags'
 import { MODES } from '../lib/body/modes'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { IconBtn } from '../components/IconBtn'
 import { SettingsSection } from '../components/SettingsSection'
 import { useStore } from '../store'
@@ -54,6 +55,9 @@ export function BodySettingsClips({
   const [beatMode, setBeatMode] = useState(false)
   const [clipFilterText, setClipFilterText] = useState('')
   const [clipFilterTags, setClipFilterTags] = useState<string[]>([])
+  // Clip path pending trash confirmation (themed ConfirmDialog at the
+  // section root, not window.confirm).
+  const [confirmTrash, setConfirmTrash] = useState<string | null>(null)
 
   // Active character's rig — used to filter the clip list per the
   // STRICT-LINE POLICY (rigRemap.ts): each character only plays clips
@@ -318,15 +322,7 @@ export function BodySettingsClips({
                     ))}
                     <IconBtn
                       label={`Move ${path} to _trash/`}
-                      onClick={() => {
-                        if (
-                          confirm(
-                            `Move "${path}" to trash?\n\nFile stays on disk in _trash/ — Rescan to restore.`,
-                          )
-                        ) {
-                          void clipsApi.trash(path)
-                        }
-                      }}
+                      onClick={() => setConfirmTrash(path)}
                       sx={{
                         color: 'text.secondary',
                         '&:hover': { color: 'error.main' },
@@ -533,6 +529,15 @@ export function BodySettingsClips({
           </Box>
         ))}
       </Box>
+
+      <ConfirmDialog
+        open={confirmTrash !== null}
+        title="Move clip to trash"
+        message={`Move "${confirmTrash}" to trash? The file stays on disk in _trash/ — Rescan to restore.`}
+        confirmLabel="Move to trash"
+        onConfirm={() => confirmTrash && void clipsApi.trash(confirmTrash)}
+        onClose={() => setConfirmTrash(null)}
+      />
     </SettingsSection>
   )
 }
