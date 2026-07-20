@@ -1,6 +1,6 @@
 [project]
 name = "yz-body"            # dist name; import package is "yz_body"
-version = "0.0.8"
+version = "0.0.9"
 description = "3D full-body avatar for JarvYZ — gestures, motion clips, lipsync, render styles. JarvYZ's body (vs musetalk's face). Standalone HTTP service + dynamic-module UI (dashboard variant 13)."
 requires-python = ">=3.10,<3.13"
 license = { text = "MIT" }
