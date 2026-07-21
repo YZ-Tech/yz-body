@@ -1,10 +1,11 @@
 [project]
 name = "yz-body"            # dist name; import package is "yz_body"
-version = "0.0.9"
+version = "0.0.10"
 description = "3D full-body avatar for JarvYZ — gestures, motion clips, lipsync, render styles. JarvYZ's body (vs musetalk's face). Standalone HTTP service + dynamic-module UI (dashboard variant 13)."
 requires-python = ">=3.10,<3.13"
 license = { text = "MIT" }
 dependencies = [
+    "yz-satellite-common>=0.0.1",
     "fastapi>=0.110.0",
     "uvicorn[standard]>=0.27.0",
     "pydantic>=2.5.0",

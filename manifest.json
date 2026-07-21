@@ -1,7 +1,7 @@
 {
   "id": "body",
   "name": "Full-Body Avatar",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "enabled": true,
   "nav": null,
   "dashboards": [
@@ -21,9 +21,9 @@
   ],
   "service": {
     "url": "http://127.0.0.1:9005",
+    "spawnModule": "yz_body",
     "proxy": {
       "prefix": "/api/body",
-      "spawnModule": "yz_body",
       "graceS": 15,
       "timeoutS": 60
     }
